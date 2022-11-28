@@ -30,7 +30,7 @@ privateKeyString
  - private key used by server
 
 publicKeyString
- - public key used by serve
+ - public key used by server
 
 storeMessages
  - true / false (keep downloaded messages on server?)
