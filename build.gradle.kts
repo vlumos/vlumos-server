@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "com.vlumos"
-version = "0.0.7"
+version = "0.0.9"
 
 application {
     mainClass.set("io.ktor.server.netty.EngineMain")

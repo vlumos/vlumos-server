@@ -29,6 +29,7 @@ import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.LoggerContext
 import com.vlumos.data.model.JsonAllData
 import org.slf4j.LoggerFactory
+import kotlin.reflect.jvm.internal.impl.descriptors.deserialization.PlatformDependentDeclarationFilter.All
 
 private const val RAN_LENGTH = 16
 private const val TIME_LENGTH = 10
@@ -41,6 +42,9 @@ val rootLogger: Logger = loggerContext.getLogger("org.mongodb.driver")
 val negativeCheck = System.getenv("checkNegTimeout").toInt()
 val positiveCheck = System.getenv("checkTimeout").toInt()
 val storeMessage = System.getenv("storeMessages").toBoolean()
+val log = System.getenv("log").toBoolean()
+
+
 
 fun Route.allData() {
     rootLogger.level = Level.OFF
@@ -51,6 +55,7 @@ fun Route.allData() {
         val unBuildPair = unbuildServerDataGet(data) // huid, timestamp
 
         val timeDifference = (Instant.now().toEpochMilli() / 1000) - unBuildPair.second.toInt()
+        if (log) println("get - $timeDifference")
         if (timeDifference in negativeCheck..positiveCheck) {
             val messagesRequested = if (storeMessage) {
                 allDataService.getAllUnreadData(unBuildPair.first, amount)
@@ -106,6 +111,7 @@ fun Route.allData() {
                         timestamp = unBuildPair.second.toLong()
                     } else {
                         val timeDifference = (Instant.now().toEpochMilli() / 1000) - timestamp //unBuildPair.second.toInt()
+                        if (log) println("post - $timeDifference")
                         if (timeDifference in negativeCheck ..positiveCheck) {
                             newAllData = AllData(allData.timestamp, unBuildPair.first, allData.data, false)
                             allDataService.addOneAllData(newAllData)
@@ -119,7 +125,7 @@ fun Route.allData() {
                 counter += 1
             }
         } catch (e: Exception) {
-            println(e.stackTraceToString())
+            if (log) println(e.stackTraceToString())
             jsonAllData = JsonAllData(0L, e.stackTraceToString(), "ERROR", false)
             call.respond(HttpStatusCode.Forbidden, jsonAllData)
         }
@@ -140,6 +146,7 @@ private fun unbuildServerData(data: String): Pair<String, String> {
     val unRandomHuid = randomHuid.removeRange(0, RAN_LENGTH).trim()
     val timestamp = unRandomHuid.slice( 0..9)
     val unTimestampUid = unRandomHuid.removeRange(0, TIME_LENGTH)
+    if (log) println("POST - unTimestampUid = $unTimestampUid, timestamp = $timestamp")
     return Pair(unTimestampUid, timestamp)
 }
 
@@ -149,6 +156,7 @@ private fun unbuildServerDataGet(data: String): Pair<String, String> {
     val unRandomUid = uid.removeRange(0, RAN_LENGTH).trim()
     val timestamp = unRandomUid.slice( 0..9)
     val unTimestampUid = unRandomUid.removeRange(0, TIME_LENGTH)
+    if (log) println("GET - huid = ${sha256(unTimestampUid).toBase64().trim()}, timestamp = $timestamp")
     return Pair(sha256(unTimestampUid).toBase64().trim(), timestamp)
 }
 

@@ -35,7 +35,8 @@ class AllDataService {
 
     suspend fun getAllData(huid: String, amount: Int): List<AllData> {
         return collectionAllDataRead.find(
-            AllData::serverData eq huid, AllData::readMessage eq false)
+            AllData::serverData eq huid
+        )
             .limit(amount).toList()
     }
 

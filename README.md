@@ -26,6 +26,9 @@ connectionRead
 connectionWrite
  - write connection string to mongoDB -> mongodb://user:password@ip:port/admin
 
+log
+ - true / false (show some basic logs on server)
+
 privateKeyString
  - private key used by server
 
