@@ -1,8 +1,10 @@
-val ktor_version: String by project
-val kotlin_version: String by project
-val kmongo_version: String by project
-val logback_version: String by project
-val coroutine_version: String by project
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+val ktorVersion: String by project
+val kotlinVersion: String by project
+val kmongoVersion: String by project
+val logbackVersion: String by project
+val coroutineVersion: String by project
 
 plugins {
     application
@@ -43,16 +45,25 @@ tasks {
 }
 
 dependencies {
-    implementation("io.ktor:ktor-server-core-jvm:$ktor_version")
-    implementation("io.ktor:ktor-server-host-common-jvm:$ktor_version")
-    implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktor_version")
-    implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:$ktor_version")
-    implementation("io.ktor:ktor-server-netty-jvm:$ktor_version")
-    implementation("ch.qos.logback:logback-classic:$logback_version")
-    implementation("org.litote.kmongo:kmongo-coroutine-serialization:$kmongo_version")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutine_version")
+    implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-server-host-common-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:$ktorVersion")
+    implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
+    implementation("ch.qos.logback:logback-classic:$logbackVersion")
+    implementation("org.litote.kmongo:kmongo-coroutine-serialization:$kmongoVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutineVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
 
-    testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
+    testImplementation("io.ktor:ktor-server-tests-jvm:$ktorVersion")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
+    implementation(kotlin("stdlib-jdk8"))
+}
+val compileKotlin: KotlinCompile by tasks
+compileKotlin.kotlinOptions {
+    jvmTarget = "1.8"
+}
+val compileTestKotlin: KotlinCompile by tasks
+compileTestKotlin.kotlinOptions {
+    jvmTarget = "1.8"
 }
