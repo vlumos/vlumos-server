@@ -1,16 +1,10 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
-val ktorVersion: String by project
-val kotlinVersion: String by project
-val kmongoVersion: String by project
-val logbackVersion: String by project
-val coroutineVersion: String by project
 
 plugins {
     application
-    kotlin("jvm") version "1.7.20"
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.7.20"
-    id("com.github.johnrengelman.shadow") version "7.1.2"
+    kotlin("jvm") version "2.4.0"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.4.0"
+    id("com.gradleup.shadow") version "9.4.2"
+    id("com.google.cloud.tools.appengine") version "2.8.7"
 }
 
 group = "com.vlumos"
@@ -24,12 +18,6 @@ buildscript {
     repositories {
         mavenCentral()
     }
-    dependencies {
-        classpath("com.google.cloud.tools:appengine-gradle-plugin:2.2.0")
-    }
-}
-apply {
-    plugin("com.google.cloud.tools.appengine")
 }
 
 repositories {
@@ -45,25 +33,27 @@ tasks {
 }
 
 dependencies {
-    implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
-    implementation("io.ktor:ktor-server-host-common-jvm:$ktorVersion")
-    implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:$ktorVersion")
-    implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
-    implementation("ch.qos.logback:logback-classic:$logbackVersion")
-    implementation("org.litote.kmongo:kmongo-coroutine-serialization:$kmongoVersion")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutineVersion")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
-
-    testImplementation("io.ktor:ktor-server-tests-jvm:$ktorVersion")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlinVersion")
+    implementation(libs.ktor.server.host.common)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.websockets)
+    implementation(libs.logback.classic)
+    implementation(libs.kmongo.coroutine.serialization)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.datetime)
+    testImplementation(libs.ktor.server.testhost)
+    testImplementation(libs.kotlin.test.junit)
     implementation(kotlin("stdlib-jdk8"))
 }
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions {
-    jvmTarget = "1.8"
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
-val compileTestKotlin: KotlinCompile by tasks
-compileTestKotlin.kotlinOptions {
-    jvmTarget = "1.8"
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }

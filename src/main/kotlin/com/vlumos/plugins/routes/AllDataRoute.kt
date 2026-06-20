@@ -8,7 +8,10 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.websocket.*
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
@@ -39,10 +42,10 @@ private val allDataService = AllDataService()
 val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
 val rootLogger: Logger = loggerContext.getLogger("org.mongodb.driver")
 
-val negativeCheck = System.getenv("checkNegTimeout").toInt()
-val positiveCheck = System.getenv("checkTimeout").toInt()
-val storeMessage = System.getenv("storeMessages").toBoolean()
-val log = System.getenv("log").toBoolean()
+val negativeCheck = System.getenv("checkNegTimeout")?.toIntOrNull() ?: -300
+val positiveCheck = System.getenv("checkTimeout")?.toIntOrNull() ?: 300
+val storeMessage = System.getenv("storeMessages")?.toBoolean() ?: false
+val log = System.getenv("log")?.toBoolean() ?: true
 
 
 
@@ -118,12 +121,13 @@ fun Route.allData() {
                         } else {
                             jsonAllData = JsonAllData(0L, "Timed Out", "ERROR", false)
                             call.respond(HttpStatusCode.NotAcceptable, jsonAllData)
+                            return@post
                         }
                     }
                 }
-                if (counter != 0) call.respond(HttpStatusCode.OK, newAllData)
                 counter += 1
             }
+            call.respond(HttpStatusCode.OK, newAllData)
         } catch (e: Exception) {
             if (log) println(e.stackTraceToString())
             jsonAllData = JsonAllData(0L, e.stackTraceToString(), "ERROR", false)
@@ -204,6 +208,74 @@ private fun String.fromBase64Url(): ByteArray =
 
 private fun sha256(str: String): ByteArray =
     MessageDigest.getInstance("SHA-256").digest(str.toByteArray(Charsets.UTF_8))
+
+val activeSessions = java.util.concurrent.ConcurrentHashMap<String, DefaultWebSocketServerSession>()
+
+fun Route.websocketRoute() {
+    val allDataService = AllDataService()
+    
+    webSocket("/wsData") {
+        var clientHuid: String? = null
+        try {
+            for (frame in incoming) {
+                if (frame is Frame.Text) {
+                    val text = frame.readText().trim()
+                    
+                    if (text.startsWith("[")) {
+                        val messages: List<JsonAllData> = Json.decodeFromString(text)
+                        for (msg in messages) {
+                            if (msg.data == "SERVERKEY") {
+                                val publicKeyString = allDataService.publicKey()
+                                val publicKeyStringGzip = gzip(publicKeyString).toBase64Url()
+                                send(Frame.Text(Json.encodeToString(listOf(JsonAllData(0L, "", "SERVERKEY$publicKeyStringGzip", false)))))
+                            } else {
+                                val unBuildPair = unbuildServerData(msg.serverData)
+                                val newAllData = AllData(msg.timestamp, unBuildPair.first, msg.data, false)
+                                allDataService.addOneAllData(newAllData)
+                                
+                                // Send ACK back to the sender
+                                send(Frame.Text(Json.encodeToString(listOf(JsonAllData(msg.timestamp, unBuildPair.first, "ACK", false)))))
+                                
+                                val recipientSession = activeSessions[unBuildPair.first]
+                                if (recipientSession != null) {
+                                    try {
+                                        recipientSession.send(Frame.Text(Json.encodeToString(listOf(msg))))
+                                    } catch (e: Exception) {
+                                        activeSessions.remove(unBuildPair.first)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        try {
+                            val unBuildPair = unbuildServerDataGet(text)
+                            val huid = unBuildPair.first
+                            clientHuid = huid
+                            activeSessions[huid] = this
+                            
+                            val messagesRequested = allDataService.getAllData(huid, 100)
+                            if (messagesRequested.isNotEmpty()) {
+                                val jsonMessages = messagesRequested.map {
+                                    JsonAllData(it.timestamp.toString().toLong(), "", it.data, it.readMessage)
+                                }
+                                send(Frame.Text(Json.encodeToString(jsonMessages)))
+                                
+                                val uidsFound = messagesRequested.map { "'${it.serverData}'" }
+                                allDataService.deleteManyAllData(uidsFound)
+                            }
+                        } catch (e: Exception) {
+                            send(Frame.Text(Json.encodeToString(listOf(JsonAllData(0L, "Auth/Decryption Failed: ${e.message}", "ERROR", false)))))
+                        }
+                    }
+                }
+            }
+        } finally {
+            clientHuid?.let {
+                activeSessions.remove(it)
+            }
+        }
+    }
+}
 
 
 
