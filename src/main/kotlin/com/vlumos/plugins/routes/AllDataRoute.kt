@@ -236,14 +236,19 @@ fun Route.websocketRoute() {
                                 // Send ACK back to the sender
                                 send(Frame.Text(Json.encodeToString(listOf(JsonAllData(msg.timestamp, unBuildPair.first, "ACK", false)))))
                                 
-                                val recipientSession = activeSessions[unBuildPair.first]
-                                if (recipientSession != null) {
-                                    try {
-                                        recipientSession.send(Frame.Text(Json.encodeToString(listOf(msg))))
-                                    } catch (e: Exception) {
-                                        activeSessions.remove(unBuildPair.first)
-                                    }
-                                }
+                                 val recipientSession = activeSessions[unBuildPair.first]
+                                 if (recipientSession != null) {
+                                     try {
+                                         recipientSession.send(Frame.Text(Json.encodeToString(listOf(msg))))
+                                         if (storeMessage) {
+                                             allDataService.updateMarkRead(listOf("'${unBuildPair.first}'"))
+                                         } else {
+                                             allDataService.deleteManyAllData(listOf("'${unBuildPair.first}'"))
+                                         }
+                                     } catch (e: Exception) {
+                                         activeSessions.remove(unBuildPair.first)
+                                     }
+                                 }
                             }
                         }
                     } else {
