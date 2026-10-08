@@ -26,6 +26,7 @@ import java.util.zip.GZIPOutputStream
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.OAEPParameterSpec
+import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.PSource
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
@@ -179,11 +180,18 @@ private fun unwrapAes(aesWrappedKey:String, privateKey: PrivateKey): Key {
     return cipher.unwrap(aesWrappedKey.fromBase64(), "AES",  Cipher.SECRET_KEY)
 }
 
-private fun decryptAes(key:Key, ivBytes:ByteArray, toDecrypt: ByteArray): String {
-    val cipher = Cipher.getInstance("AES/CBC/NoPadding")
-    val spec = IvParameterSpec(ivBytes)
-    cipher.init(Cipher.DECRYPT_MODE, key, spec)
-    return cipher.doFinal(toDecrypt).decodeToString()
+private fun decryptAes(key: Key, ivBytes: ByteArray, toDecrypt: ByteArray): String {
+    return if (ivBytes.size == 12) {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        val spec = GCMParameterSpec(128, ivBytes)
+        cipher.init(Cipher.DECRYPT_MODE, key, spec)
+        cipher.doFinal(toDecrypt).decodeToString()
+    } else {
+        val cipher = Cipher.getInstance("AES/CBC/NoPadding")
+        val spec = IvParameterSpec(ivBytes)
+        cipher.init(Cipher.DECRYPT_MODE, key, spec)
+        cipher.doFinal(toDecrypt).decodeToString()
+    }
 }
 
 private fun decryptRsaData(encryption: ByteArray): String { // , privateKey: PrivateKey
